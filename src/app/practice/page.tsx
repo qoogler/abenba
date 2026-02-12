@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Timer from "@/components/Timer";
 import PracticeChecklist from "@/components/PracticeChecklist";
+import VideoAnalyzer, { VideoAnalysisStats } from "@/components/VideoAnalyzer";
 import { addSession, PracticeSession } from "@/lib/storage";
 
 type Phase = "setup" | "practicing" | "review" | "saved";
@@ -17,6 +18,7 @@ export default function PracticePage() {
   const [selfRating, setSelfRating] = useState(3);
   const [notes, setNotes] = useState("");
   const [fillerCount, setFillerCount] = useState(0);
+  const [videoStats, setVideoStats] = useState<VideoAnalysisStats | null>(null);
 
   const handleTimeUpdate = useCallback((seconds: number) => {
     setElapsedSeconds(seconds);
@@ -24,6 +26,10 @@ export default function PracticePage() {
 
   const handleTimerFinish = useCallback(() => {
     // Timer reached target — don't auto-stop, let user decide
+  }, []);
+
+  const handleVideoStats = useCallback((stats: VideoAnalysisStats) => {
+    setVideoStats(stats);
   }, []);
 
   const startPractice = () => {
@@ -65,7 +71,10 @@ export default function PracticePage() {
     setFillerCount(0);
     setTopic("");
     setIsTimerRunning(false);
+    setVideoStats(null);
   };
+
+  const isSessionActive = phase === "practicing" && isTimerRunning;
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -122,8 +131,8 @@ export default function PracticePage() {
               <ul className="space-y-1 text-sm text-amber-700 dark:text-amber-400">
                 <li>● עמדו כאילו אתם על הבמה — לא יושבים</li>
                 <li>● דברו בקול רם כאילו יש קהל</li>
-                <li>● נסו לא להסתכל על פתקים</li>
-                <li>● הקליטו את עצמכם אם אפשר</li>
+                <li>● הפעילו את המצלמה לניתוח חי</li>
+                <li>● צפו בהקלטה אחרי התרגול</li>
               </ul>
             </div>
 
@@ -134,6 +143,12 @@ export default function PracticePage() {
               התחילו תרגול
             </button>
           </div>
+
+          {/* Video setup before practice */}
+          <VideoAnalyzer
+            isSessionActive={false}
+            onStatsUpdate={handleVideoStats}
+          />
         </div>
       )}
 
@@ -146,48 +161,62 @@ export default function PracticePage() {
             </div>
           )}
 
-          <div className="flex justify-center">
-            <Timer
-              targetMinutes={targetMinutes}
-              isRunning={isTimerRunning}
-              onTimeUpdate={handleTimeUpdate}
-              onFinish={handleTimerFinish}
-            />
-          </div>
+          {/* Two-column layout: Timer + Video */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Left column: Timer and controls */}
+            <div className="space-y-6">
+              <div className="flex justify-center">
+                <Timer
+                  targetMinutes={targetMinutes}
+                  isRunning={isTimerRunning}
+                  onTimeUpdate={handleTimeUpdate}
+                  onFinish={handleTimerFinish}
+                />
+              </div>
 
-          {/* Filler word counter */}
-          <div className="flex items-center justify-center gap-4">
-            <span className="text-sm text-gray-600 dark:text-gray-400">מילות מילוי:</span>
-            <button
-              onClick={() => setFillerCount((c) => Math.max(0, c - 1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-lg font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              -
-            </button>
-            <span className="min-w-[3ch] text-center text-2xl font-bold text-gray-900 dark:text-white">
-              {fillerCount}
-            </span>
-            <button
-              onClick={() => setFillerCount((c) => c + 1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-lg font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              +
-            </button>
-          </div>
+              {/* Filler word counter */}
+              <div className="flex items-center justify-center gap-4">
+                <span className="text-sm text-gray-600 dark:text-gray-400">מילות מילוי:</span>
+                <button
+                  onClick={() => setFillerCount((c) => Math.max(0, c - 1))}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-lg font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  -
+                </button>
+                <span className="min-w-[3ch] text-center text-2xl font-bold text-gray-900 dark:text-white">
+                  {fillerCount}
+                </span>
+                <button
+                  onClick={() => setFillerCount((c) => c + 1)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 text-lg font-bold text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  +
+                </button>
+              </div>
 
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={pauseResume}
-              className="rounded-xl border border-gray-300 bg-white px-6 py-3 font-bold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-            >
-              {isTimerRunning ? "השהה" : "המשך"}
-            </button>
-            <button
-              onClick={stopPractice}
-              className="rounded-xl bg-gradient-to-l from-red-500 to-red-600 px-6 py-3 font-bold text-white shadow-lg transition-transform hover:scale-105"
-            >
-              סיום תרגול
-            </button>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={pauseResume}
+                  className="rounded-xl border border-gray-300 bg-white px-6 py-3 font-bold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  {isTimerRunning ? "השהה" : "המשך"}
+                </button>
+                <button
+                  onClick={stopPractice}
+                  className="rounded-xl bg-gradient-to-l from-red-500 to-red-600 px-6 py-3 font-bold text-white shadow-lg transition-transform hover:scale-105"
+                >
+                  סיום תרגול
+                </button>
+              </div>
+            </div>
+
+            {/* Right column: Live video analysis */}
+            <div>
+              <VideoAnalyzer
+                isSessionActive={isSessionActive}
+                onStatsUpdate={handleVideoStats}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -195,6 +224,7 @@ export default function PracticePage() {
       {/* Review Phase */}
       {phase === "review" && (
         <div className="space-y-6">
+          {/* Summary stats */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
             <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">
               סיכום תרגול
@@ -219,6 +249,94 @@ export default function PracticePage() {
                 <div className="text-sm text-gray-500">מילות מילוי</div>
               </div>
             </div>
+
+            {/* Video analysis stats */}
+            {videoStats && (
+              <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                <h3 className="mb-3 text-sm font-bold text-blue-800 dark:text-blue-300">
+                  ניתוח וידאו
+                </h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="text-center">
+                    <div className={`text-lg font-bold ${
+                      videoStats.avgVolume < 15
+                        ? "text-red-600"
+                        : videoStats.avgVolume < 70
+                        ? "text-green-600"
+                        : "text-amber-600"
+                    }`}>
+                      {Math.round(videoStats.avgVolume)}%
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">עוצמת קול ממוצעת</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-lg font-bold ${
+                      videoStats.speakingRatio < 0.5
+                        ? "text-amber-600"
+                        : "text-green-600"
+                    }`}>
+                      {Math.round(videoStats.speakingRatio * 100)}%
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">זמן דיבור</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-green-600">
+                      {videoStats.goodPauses}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">הפסקות טובות</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-lg font-bold ${
+                      videoStats.totalSilenceEvents > 3
+                        ? "text-red-600"
+                        : "text-gray-900 dark:text-white"
+                    }`}>
+                      {videoStats.totalSilenceEvents}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">שתיקות ארוכות</div>
+                  </div>
+                </div>
+
+                {/* Auto-generated feedback */}
+                <div className="mt-3 space-y-1 border-t border-blue-200 pt-3 dark:border-blue-700">
+                  {videoStats.avgVolume < 15 && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      ● עוצמת הקול נמוכה מדי — נסו לדבר חזק יותר
+                    </p>
+                  )}
+                  {videoStats.avgVolume >= 15 && videoStats.avgVolume < 70 && (
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      ● עוצמת הקול טובה!
+                    </p>
+                  )}
+                  {videoStats.avgVolume >= 70 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      ● עוצמת הקול חזקה — שימו לב לא לצעוק
+                    </p>
+                  )}
+                  {videoStats.speakingRatio < 0.5 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      ● יחס דיבור נמוך — נסו למלא יותר את הזמן בתוכן
+                    </p>
+                  )}
+                  {videoStats.speakingRatio >= 0.85 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      ● כמעט בלי הפסקות — זכרו שהפסקות עוזרות לקהל לעכל
+                    </p>
+                  )}
+                  {videoStats.goodPauses >= 3 && (
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      ● שימוש מעולה בהפסקות דרמטיות!
+                    </p>
+                  )}
+                  {videoStats.totalSilenceEvents > 3 && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      ● יש שתיקות ארוכות — אולי כדאי להכין את התוכן טוב יותר
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Self rating */}
             <div className="mb-5">
@@ -256,6 +374,12 @@ export default function PracticePage() {
               />
             </div>
           </div>
+
+          {/* Video playback */}
+          <VideoAnalyzer
+            isSessionActive={false}
+            onStatsUpdate={handleVideoStats}
+          />
 
           <PracticeChecklist onChecklistChange={setChecklist} />
 
